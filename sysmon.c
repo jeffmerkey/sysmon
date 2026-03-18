@@ -3,7 +3,7 @@
 *   Copyright(c) Jeff V. Merkey 1997-2022.  All rights reserved.
 *   Open CWorthy Look Alike Terminal Library.
 *
-*   ICAPSQL Console Monitor
+*   Linux Console Monitor
 *
 **************************************************************************/
 
@@ -923,10 +923,10 @@ ULONG warn_func(NWSCREEN *screen, ULONG index)
     mask_portal(mainportal);
 
     mNum = make_menu(screen,
-		     " Exit ICAPSQLMON? ",
+		     " Exit SYSMON? ",
 		     get_screen_lines() - 12,
 		     ((get_screen_cols() - 1) / 2) -
-                     ((strlen((const char *)" Exit ICAPSQLMON? ") + 2) / 2),
+                     ((strlen((const char *)" Exit SYSMON? ") + 2) / 2),
 		     2,
 		     BORDER_DOUBLE,
 		     YELLOW | BGBLUE,
@@ -2673,7 +2673,7 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 	}
 
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "ICAPSQL Server %s", stats_ptr ? "Statistics" : "is OFFLINE");
+	snprintf(buf, sizeof(buf), "Linux Server %s", stats_ptr ? "Statistics" : "is OFFLINE");
        	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
 
@@ -2797,7 +2797,7 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 	snprintf(buf, sizeof(buf), "Peak Skipped/Second       :   %22s", w);
        	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
 
-	snprintf(buf, sizeof(buf), "ICAPSQL Product License   :   %22s", ctx->license ? "VALID" : "UNLICENSED");
+	snprintf(buf, sizeof(buf), "Linux Product License   :   %22s", ctx->license ? "VALID" : "UNLICENSED");
 	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
 	snprintf(buf, sizeof(buf), "License Key           %02X%02X%02X%02X-%02X%02X%02X%02X-%02X%02X%02X%02X%02X%02X",
 				ctx->license_data[0], ctx->license_data[1], ctx->license_data[2], 
@@ -2809,7 +2809,7 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 
 	row++;
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "ICAPSQL Configuration%s", stats_ptr ? "" : " [OFFLINE]");
+	snprintf(buf, sizeof(buf), "Linux Configuration%s", stats_ptr ? "" : " [OFFLINE]");
        	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
 
@@ -4259,7 +4259,7 @@ int mysql_summary(int portal, LCTX *ctx)
 	}
 
 	row = 0;
-	snprintf(buf, sizeof(buf), "ICAPSQL Configuration%s", stats_ptr ? "" : " [OFFLINE]");
+	snprintf(buf, sizeof(buf), "Linux Configuration%s", stats_ptr ? "" : " [OFFLINE]");
        	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
 
@@ -4551,7 +4551,7 @@ int build_network_menu(void)
     return err;
 }
 
-#define CONFIG_NAME        "  ICAPSQL Server Monitor for Linux"
+#define CONFIG_NAME        "  Server Monitor for Linux"
 #define COPYRIGHT_NOTICE1  "  Copyright (c) 1997-2022 Leaf Linux. All Rights Reserved."
 #define COPYRIGHT_NOTICE2  "  "
 
@@ -5060,7 +5060,7 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
 
        case 6:
           portal = make_portal(get_console_screen(),
-		       "ICAPSQL Configuration",
+		       "Linux Configuration",
 		       0,
 		       3,
 		       0,
@@ -5183,7 +5183,7 @@ ULONG menuKeyboardHandler(NWSCREEN *screen, ULONG key, ULONG index, ULONG portal
        case F1:
           mask_portal(mainportal);
           snprintf((char *)display_buffer, sizeof(display_buffer),
-		   "Help for ICAPSQL Monitor Program.");
+		   "Help for Linux Monitor Program.");
           error_portal((const char *)display_buffer,
 		      ((get_screen_lines() - 2) / 2));
           unmask_portal(mainportal);
@@ -5313,7 +5313,7 @@ int main(int argc, char *argv[])
     if (mlen) {};
 
     mainportal = make_portal(get_console_screen(),
-		       "ICAPSQL Server Monitor",
+		       "Linux Server Monitor",
 		       0,
 		       3,
 		       0,
@@ -5359,8 +5359,8 @@ int main(int argc, char *argv[])
     add_item_to_menu(menu, "Process Summary", 2);
     add_item_to_menu(menu, "Network Summary", 3);
     add_item_to_menu(menu, "Disk Summary", 4);
-    add_item_to_menu(menu, "ICAP Summary", 5);
-    add_item_to_menu(menu, "Configuration", 6);
+//    add_item_to_menu(menu, "ICAP Summary", 5);
+//    add_item_to_menu(menu, "Configuration", 6);
 
     memset(&np, 0, sizeof(NP));
     np.portal = mainportal;	
