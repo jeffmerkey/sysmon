@@ -2671,8 +2671,8 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 		ctx->license = stats_ptr->license;
 		memmove(ctx->license_data, stats_ptr->license_data, 128);
 	}
-
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
+	write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
+/*
 	snprintf(buf, sizeof(buf), "Linux Server %s", stats_ptr ? "Statistics" : "is OFFLINE");
        	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
         write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
@@ -2865,6 +2865,8 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 	
 	write_portal_cleol(portal, (const char *)" ", row++, 2, BRITEWHITE | BGBLUE);
 
+
+*/
 	if (mutex_sem) {
 		sem_close(mutex_sem);
 		mutex_sem = NULL;
@@ -5309,7 +5311,7 @@ int main(int argc, char *argv[])
     mlines = get_screen_lines() >= 34
 	     ? get_screen_lines() - 12
 	     : get_screen_lines() - 8;
-    mlen   = get_screen_lines() >= 34 ? 5 : 3;
+    mlen   = get_screen_lines() >= 34 ? 4 : 3;
     if (mlen) {};
 
     mainportal = make_portal(get_console_screen(),
