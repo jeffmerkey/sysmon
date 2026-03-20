@@ -2731,11 +2731,11 @@ ULONG activate_menu(ULONG num)
 	 len = strlen((const char *)frame[num].el_strings[i]);
    }
 
-   if (frame[num].header)
-   {
+   //if (frame[num].header)
+   //{
       if (strlen((const char *)frame[num].header) > len)
 	 len = strlen((const char *)frame[num].header);
-   }
+   //}
 
    frame[num].end_column = len + 3 + frame[num].start_column;
 

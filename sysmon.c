@@ -3148,7 +3148,8 @@ int display_process(int portal, int row, pid_t pid, int pid_width)
        pw = getpwuid(uid);
        if (pw) {
           if (strlen(pw->pw_name) > 8) {
-             snprintf(name, 8, "%s", pw->pw_name);
+             pw->pw_name[7] = '\0';
+	     snprintf(name, 8, "%s", pw->pw_name);
              strcat(name, "+");
           }
           else
