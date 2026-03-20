@@ -42,3 +42,7 @@ The %{name} package contains the CWorthy Linux Server Console.
 %{_bindir}/sysmon
 
 %changelog
+* Fri Mar 20 2026 jvm
+- Cleanup.
+
+
