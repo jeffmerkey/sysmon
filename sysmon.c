@@ -2417,7 +2417,7 @@ int sem_unlock(sem_t *mutex_sem)
 	return 0;
 }
 
-int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct net_stats_list *list, int flags)
+int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct net_stats_list *list, int flags)
 {
 	GLOBAL *stats_ptr = NULL;
 	sem_t *mutex_sem = NULL;
@@ -2428,7 +2428,7 @@ int display_icapsql_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 	float util;
 	
 	if (!ctx || !list || !list->current || !list->previous) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_icapsql_summary", 0, 2, BRITEWHITE | BGBLUE);
+       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
 	   return 0;
 	}
 	
@@ -3234,7 +3234,7 @@ int display_process_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct
 	char outbuf[1024], *s;
 	
 	if (!ctx || !list || !list->current || !list->previous) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_icapsql_summary", 0, 2, BRITEWHITE | BGBLUE);
+       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
 	   return 0;
 	}
 	
@@ -4188,7 +4188,7 @@ void *icapsql_summary_routine(void *p)
    {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
       clear_portal_storage(portal);
-      display_icapsql_summary(portal, st, pr, ctx, &np->list, 
+      display_sysmon_summary(portal, st, pr, ctx, &np->list, 
                               processor_toggle ? LONG_FORMAT : SHORT_FORMAT);
       update_static_portal(portal);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
@@ -4219,7 +4219,7 @@ int mysql_summary(int portal, LCTX *ctx)
 	char nbuf[1024], *w;
 	
 	if (!ctx) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_icapsql_summary", 0, 2, BRITEWHITE | BGBLUE);
+       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
 	   return 0;
 	}
 	
@@ -4377,7 +4377,7 @@ void *pstat_routine(void *p)
    {
        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
        clear_portal_storage(portal);
-       display_icapsql_summary(portal, st, pr, ctx, &np->list, 
+       display_sysmon_summary(portal, st, pr, ctx, &np->list, 
                               processor_toggle ? LONG_FORMAT : SHORT_FORMAT);
        update_static_portal(portal);
        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
