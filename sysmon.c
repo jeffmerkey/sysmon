@@ -1,6 +1,6 @@
 /***************************************************************************
 *
-*   Copyright(c) Jeff V. Merkey 1997-2022.  All rights reserved.
+*   Copyright(c) Jeff V. Merkey 1997-2026.  All rights reserved.
 *   Open CWorthy Look Alike Terminal Library.
 *
 *   Linux Console Monitor
@@ -4555,7 +4555,7 @@ int build_network_menu(void)
 }
 
 #define CONFIG_NAME        "  Server Monitor for Linux"
-#define COPYRIGHT_NOTICE1  "  Copyright (c) 1997-2022 Leaf Linux. All Rights Reserved."
+#define COPYRIGHT_NOTICE1  "  Copyright (c) 1997-2026 Leaf Linux. All Rights Reserved."
 #define COPYRIGHT_NOTICE2  "  "
 
 ULONG ProcessKeyboardHandler(NWSCREEN *screen, ULONG key, ULONG index, ULONG portal)
