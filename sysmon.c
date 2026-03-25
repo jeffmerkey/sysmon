@@ -2269,8 +2269,6 @@ void output_uptime(unsigned long long uptime)
 	seconds  = uptime % 60;
 }
 
-//#define STATS_MEM_NAME "/icapsqlstats"
-//#define SEM_MUTEX_NAME "/icapsqlmutex"
 #define STATS_MEM_NAME "/leafstats"
 #define SEM_MUTEX_NAME "/leafmutex"
 
@@ -2488,7 +2486,6 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
 	if ((mutex_sem = sem_open(SEM_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
 		mutex_sem = NULL;
 	}
-
 	if (stats_ptr) {
 	}
 
@@ -2496,7 +2493,6 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
 		sem_close(mutex_sem);
 		mutex_sem = NULL;
 	}
-
 	if (stats_ptr) {
 		munmap(stats_ptr, sizeof(GLOBAL));
 		stats_ptr = NULL;
@@ -2505,7 +2501,6 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
 		close(stats_shm);
 		stats_shm = 0;
 	}
-
 	return 1;
 }
 
