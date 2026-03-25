@@ -252,59 +252,10 @@ struct net_stats_list {
     struct user_net_device_stats *previous;
 };
 
-typedef struct icapsql_context {
-	unsigned long long pages_per_second;
-	unsigned long long bytes_per_second;
-	unsigned long long errors_per_second;
-	unsigned long long dropped_per_second;
-	unsigned long long aborts_per_second;
-	unsigned long long skipped_per_second;
-	unsigned long long total_pages;
-	unsigned long long total_bytes;
-	unsigned long long total_errors;
-	unsigned long long total_dropped;
-	unsigned long long total_aborts;
-	unsigned long long total_skipped;
-	unsigned long long total_allocation;
-	unsigned long long total_process;
-	unsigned long long total_connection;
-	unsigned long long total_queue;
-	unsigned long long peak_pages_per_second;
-	unsigned long long peak_bytes_per_second;
-	unsigned long long peak_errors_per_second;
-	unsigned long long peak_dropped_per_second;
-	unsigned long long peak_aborts_per_second;
-	unsigned long long peak_skipped_per_second;
-	unsigned long long avg_pages_per_second;
-	unsigned long long avg_bytes_per_second;
-	unsigned long long avg_errors_per_second;
-	unsigned long long avg_dropped_per_second;
-	unsigned long long avg_aborts_per_second;
-	unsigned long long avg_skipped_per_second;
-	char db_host[MAX_SQL_HOSTNAME+1];
-	char db_name[MAX_SQL_DATABASE_NAME+1];
-	char db_table[MAX_SQL_TABLE_NAME+1];
-	char db_user[MAX_SQL_USER_NAME+1];
-	char db_pass[MAX_SQL_PASSWORD+1];
-	char db_path[MAX_PATH_LENGTH+1];
-        unsigned long db_free_space_threshold;
-	unsigned long db_max_size;
-	unsigned long skip_length;
-	unsigned long condensed_max_length;
-        unsigned long async_threads;
-        unsigned long sync_threads;
-	int show_skipped_requests;
-	int db_mode;
-	int db_init_startup;
-	unsigned long long license;
-        unsigned char license_data[128];
-} LCTX;
-
 typedef struct nparam {
    int portal;
    STATE *state;
    PSTATE *pstate;
-   LCTX *ctx;
    struct net_stats_list list;
    char ifname[IFNAMSIZ+1];
 } NP;
@@ -366,79 +317,6 @@ struct mem_stats_list {
 	unsigned long long cached;
 	unsigned long long swapcached;
 };
-
-char mysql_datadir[4096+1] = { "/var/lib/mysql" };
-
-unsigned long long mysql_free_size(void)
-{
-	char buffer[1024];
-	FILE *fp;
-	unsigned long long len = 0, flag = 0;
-
-	fp = fopen("/etc/my.cnf", "rb");
-	while (fp && !feof(fp))
-	{
-		if (fgets(buffer, 1024, fp)) 
-		{
-			int count;
-			char temp[1024], *src, *dest;
-			temp[0] = '\0';
-			count = 0;
-			src = buffer;
-			dest = temp;
-
-			// strip out all spaces and punc characters
-			while (*src) {
-				if (++count > 1024)
-					break;
-				if ((*src == '\n') || (*src == ' ') || (*src == '\t') ||
-					 (*src == '\r') || (*src == ';') || (*src == ',')) {
-					src++;
-				}
-				else				
-					*dest++ = *src++;
-			}
-			*dest = '\0';
-
-			// skip empty lines
-			if (!temp[0])
-				continue;
-
-			// skip comments
-			if (!strncasecmp(temp, "#", 1))
-				continue;
-
-			if (!strncasecmp(temp, "[mysqld]", 8)) {
-				flag++;
-			}
-			else if (!strncasecmp(temp, "datadir=", 8) && flag) {
-				flag = 0;
-				strncpy(mysql_datadir, &temp[8], 4096+1);
-    				struct statvfs stat;
-				if (!statvfs(mysql_datadir, &stat)) {
-					len = (unsigned long long)stat.f_bavail * stat.f_frsize;
-					fclose(fp);
-					return len;
-				}
-			}
-			else if (!strncasecmp(temp, "[", 1)) {
-				// if new section, clear mysqld flag
-				flag = 0;
-			}
-		}
-	}
-	if (fp) {
-		fclose(fp);
-	}
-
-	struct statvfs stat;
-	if (!statvfs(mysql_datadir, &stat)) {
-		len = (unsigned long long)stat.f_bavail * stat.f_frsize;
-		return len;
-	}
-	return len;
-
-}
 
 char *comma_snprintf(char *buffer, int size, const char *format, ...)
 {
@@ -2417,7 +2295,7 @@ int sem_unlock(sem_t *mutex_sem)
 	return 0;
 }
 
-int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct net_stats_list *list, int flags)
+int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_list *list, int flags)
 {
 	GLOBAL *stats_ptr = NULL;
 	sem_t *mutex_sem = NULL;
@@ -2427,8 +2305,8 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct 
 	char outbuf[1024], *s;
 	float util;
 	
-	if (!ctx || !list || !list->current || !list->previous) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
+	if (!list || !list->current || !list->previous) {
+       	   write_portal_cleol(portal, "sysmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
 	   return 0;
 	}
 	
@@ -2612,261 +2490,8 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct 
 	}
 
 	if (stats_ptr) {
-		ctx->pages_per_second = stats_ptr->pages_per_second;
-		ctx->bytes_per_second = stats_ptr->bytes_per_second;
-		ctx->dropped_per_second = stats_ptr->dropped_per_second;
-		ctx->errors_per_second = stats_ptr->errors_per_second;
-		ctx->aborts_per_second = stats_ptr->aborts_per_second;
-		ctx->skipped_per_second = stats_ptr->skipped_per_second;
-		ctx->total_pages = stats_ptr->total_pages;
-		ctx->total_bytes = stats_ptr->total_bytes;
-		ctx->total_dropped = stats_ptr->total_dropped;
-		ctx->total_errors = stats_ptr->total_errors;
-		ctx->total_aborts = stats_ptr->total_aborts;
-		ctx->total_skipped = stats_ptr->total_skipped;
-		ctx->total_allocation = stats_ptr->total_allocation;
-		ctx->total_process = stats_ptr->total_process;
-		ctx->total_connection = stats_ptr->total_connection;
-		ctx->total_queue = stats_ptr->total_queue;
-		ctx->avg_pages_per_second = stats_ptr->avg_pages_per_second;
-		ctx->avg_bytes_per_second = stats_ptr->avg_bytes_per_second;
-		ctx->avg_dropped_per_second = stats_ptr->avg_dropped_per_second;
-		ctx->avg_errors_per_second = stats_ptr->avg_errors_per_second;
-		ctx->avg_aborts_per_second = stats_ptr->avg_aborts_per_second;
-		ctx->avg_skipped_per_second = stats_ptr->avg_skipped_per_second;
-		ctx->peak_pages_per_second = stats_ptr->peak_pages_per_second;
-		ctx->peak_bytes_per_second = stats_ptr->peak_bytes_per_second;
-		ctx->peak_dropped_per_second = stats_ptr->peak_dropped_per_second;
-		ctx->peak_errors_per_second = stats_ptr->peak_errors_per_second;
-		ctx->peak_aborts_per_second = stats_ptr->peak_aborts_per_second;
-		ctx->peak_skipped_per_second = stats_ptr->peak_skipped_per_second;
-
-		strncpy(ctx->db_host, stats_ptr->db_host, MAX_SQL_HOSTNAME);
-		ctx->db_host[MAX_SQL_HOSTNAME] = '\0';
-
-		strncpy(ctx->db_name, stats_ptr->db_name, MAX_SQL_DATABASE_NAME);
-		ctx->db_name[MAX_SQL_DATABASE_NAME] = '\0';
-
-		strncpy(ctx->db_table, stats_ptr->db_table, MAX_SQL_TABLE_NAME);
-		ctx->db_table[MAX_SQL_TABLE_NAME] = '\0';
-
-		strncpy(ctx->db_user, stats_ptr->db_user, MAX_SQL_USER_NAME);
-		ctx->db_user[MAX_SQL_USER_NAME] = '\0';
-
-		strncpy(ctx->db_pass, "******", MAX_SQL_PASSWORD);
-		ctx->db_pass[MAX_SQL_PASSWORD] = '\0';
-
-		strncpy(ctx->db_path, stats_ptr->db_path, MAX_PATH_LENGTH);
-		ctx->db_path[MAX_PATH_LENGTH] = '\0';
-
-		ctx->db_free_space_threshold = stats_ptr->db_free_space_threshold;
-		ctx->db_max_size = stats_ptr->db_max_size;
-		ctx->skip_length = stats_ptr->skip_length;
-		ctx->condensed_max_length = stats_ptr->condensed_max_length;
-		ctx->show_skipped_requests = stats_ptr->show_skipped_requests;
-		ctx->db_mode = stats_ptr->db_mode;
-		ctx->db_init_startup = stats_ptr->db_init_startup;
-		ctx->async_threads = stats_ptr->async_threads;
-		ctx->sync_threads = stats_ptr->sync_threads;
-		ctx->license = stats_ptr->license;
-		memmove(ctx->license_data, stats_ptr->license_data, 128);
 	}
-	write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-/*
-	snprintf(buf, sizeof(buf), "Linux Server %s", stats_ptr ? "Statistics" : "is OFFLINE");
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
 
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->async_threads, 18, 0);
-	snprintf(buf, sizeof(buf), "Pending Async I/O         :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->sync_threads, 18, 0);
-	snprintf(buf, sizeof(buf), "Pending Sync I/O          :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->pages_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Pages/Second              :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->bytes_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Bytes/Second              :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->dropped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Dropped/Second            :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->errors_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Errors/Second             :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->aborts_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Aborts/Second             :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->skipped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Skipped/Second            :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_pages, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Pages               :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_bytes, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Bytes               :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_dropped, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Dropped             :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_errors, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Errors              :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_aborts, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Aborts              :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_skipped, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Skipped             :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_allocation, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Allocation Errors   :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_process, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Process Errors      :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_connection, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Connection Errors   :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->total_queue, 18, 0);
-	snprintf(buf, sizeof(buf), "Total Queueing Drops      :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_pages_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Pages/Second      :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_bytes_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Bytes/Second      :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_dropped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Dropped/Second    :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_errors_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Errors/Second     :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_aborts_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Aborts/Second     :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->avg_skipped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Average Skipped/Second    :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_pages_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Pages/Second         :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_bytes_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Bytes/Second         :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_dropped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Dropped/Second       :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_errors_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Errors/Second        :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_aborts_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Aborts/Second        :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", ctx->peak_skipped_per_second, 18, 0);
-	snprintf(buf, sizeof(buf), "Peak Skipped/Second       :   %22s", w);
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	snprintf(buf, sizeof(buf), "Linux Product License   :   %22s", ctx->license ? "VALID" : "UNLICENSED");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "License Key           %02X%02X%02X%02X-%02X%02X%02X%02X-%02X%02X%02X%02X%02X%02X",
-				ctx->license_data[0], ctx->license_data[1], ctx->license_data[2], 
-				ctx->license_data[3], ctx->license_data[4], ctx->license_data[5], 
-				ctx->license_data[6], ctx->license_data[7], ctx->license_data[8], 
-				ctx->license_data[9], ctx->license_data[10], ctx->license_data[11],
-				ctx->license_data[12], ctx->license_data[13]); 
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	row++;
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "Linux Configuration%s", stats_ptr ? "" : " [OFFLINE]");
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-
-	snprintf(buf, sizeof(buf), "SQL Server Hostname       :   %22s", ctx->db_host[0] ? ctx->db_host : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Name         :   %22s", ctx->db_name[0] ? ctx->db_name : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Table Name            :   %22s", ctx->db_table[0] ? ctx->db_table : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL User Account          :   %22s", ctx->db_user[0] ? ctx->db_user : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Password              :   %22s", ctx->db_pass);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Path         :   %22s", ctx->db_path);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Mode         :   %22s", ctx->db_mode ? "Ring Buffer" : "Insert Mode");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%ld", ctx->db_free_space_threshold, 18, 0);
-	snprintf(buf, sizeof(buf), "SQL Free Space Threshold  :   %22s", w);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", mysql_free_size(), 18, 0);
-	snprintf(buf, sizeof(buf), "SQL Current Free Space    :   %22s", w);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-        if (!ctx->db_max_size) {
-		snprintf(buf, sizeof(buf), "SQL Table Max Records     :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%ld", ctx->db_max_size, 18, 0);
-		snprintf(buf, sizeof(buf), "SQL Table Max Records     :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-        if (!ctx->skip_length) {
-		snprintf(buf, sizeof(buf), "HTML Skip Length          :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf(nbuf, sizeof(nbuf), "%ld", ctx->skip_length);
-		snprintf(buf, sizeof(buf), "HTML Skip Length          :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        if (!ctx->condensed_max_length) {
-		snprintf(buf, sizeof(buf), "HTML Extract Max Length   :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf(nbuf, sizeof(nbuf), "%ld", ctx->condensed_max_length);
-		snprintf(buf, sizeof(buf), "HTML Extract Max Length   :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "Show Skipped Content      :   %22s", ctx->show_skipped_requests ? "ON" : "OFF");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	
-	write_portal_cleol(portal, (const char *)" ", row++, 2, BRITEWHITE | BGBLUE);
-
-
-*/
 	if (mutex_sem) {
 		sem_close(mutex_sem);
 		mutex_sem = NULL;
@@ -2948,58 +2573,6 @@ char *get_cmdline(const pid_t pid, char *result)
 	}
 	return NULL;
 }
-
-/*
-struct mem_stats_list *get_mem_stats(struct mem_stats_list *ml)
-{
-	char *s, line[1024], name[1024];
-	unsigned long long value;
-	FILE *fp;
-
-        bzero(ml, sizeof(struct mem_stats_list));
-	fp = fopen("/proc/meminfo", "r");
-	if (fp)	{
-		while (!feof(fp)) {
-			s = fgets(line, 1024, fp);
-            		if (s) {
-				if (sscanf(s, "%s %llu", name, &value) == 2) {
-					if (!strcasecmp(name, "MemTotal:")) {
-						ml->mem_total = value;
-					}
-					else if (!strcasecmp(name, "MemFree:")) {
-						ml->mem_free = value;
-					}
-					else if (!strcasecmp(name, "SwapTotal:")) {
-						ml->swap_total = value;
-					}
-					else if (!strcasecmp(name, "SwapFree:")) {
-						ml->swap_free = value;
-					}
-					else if (!strcasecmp(name, "Buffers:")) {
-						ml->buffers = value;
-					}
-					else if (!strcasecmp(name, "MemAvailable:")) {
-						ml->mem_available = value;
-					}
-					else if (!strcasecmp(name, "Cached:")) {
-						ml->cached = value;
-					}
-					else if (!strcasecmp(name, "SwapCached:")) {
-						ml->swapcached = value;
-					}
-				}
-			}
-		}
-		fclose(fp);
-
-		if (ml->mem_total > ml->mem_free)
-			ml->mem_allocated = ml->mem_total - ml->mem_free;
-		if (ml->swap_total > ml->swap_free)
-			ml->swap_allocated = ml->swap_total - ml->swap_free;
-	}
-	return ml;
-}
-*/
 
 int get_cpu(const pid_t pid, struct pstat *result)
 {
@@ -3227,14 +2800,14 @@ int display_process(int portal, int row, pid_t pid, int pid_width)
        return 0;
 }
 
-int display_process_summary(int portal, STATE *st, PSTATE *pr, LCTX *ctx, struct net_stats_list *list, int flags)
+int display_process_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_list *list, int flags)
 {
 	int row, n;
 	char buf[8192];
 	char outbuf[1024], *s;
 	
-	if (!ctx || !list || !list->current || !list->previous) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
+	if (!list || !list->current || !list->previous) {
+       	   write_portal_cleol(portal, "sysmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
 	   return 0;
 	}
 	
@@ -3553,43 +3126,6 @@ size_t trimwhitespace(char *out, size_t len, const char *str)
 
     return out_size;
 }
-
-/*
-	DIR *dirp;
-
-	dirp = opendir("/sys/block");
-	if (dirp == NULL)
-		return 0;
-
-	for (;;) {
-        	struct dirent *dp = readdir(dirp);
-	        if (dp == NULL) 
-			break;
-	        if (!strcmp(dp->d_name, devname)) {
-        		char buf[PATH_MAX];
-			ssize_t len;
-		        char path[PATH_MAX] = "/sys/block/"; 
-		        strncat(path, dp->d_name, sizeof(path) - strlen(path) - 1);
-			len = readlink(path, buf, sizeof(buf) - 1);
-			if (len < 0) {
-			   closedir(dirp);
-			   return 0;
-			}
-			buf[len] = '\0';
-
-			if (strcasestr(buf, "/devices/virtual/")) {
-			   closedir(dirp);
-			   return 0;
-                        }
-			else { 				
-			   closedir(dirp);
-			   return 1;
-                        }
-		}
-	}
-	closedir(dirp);
-	return 0;
-*/
 
 char *get_mount_swap(char *buf, size_t len, char *dev, int major, int minor)
 {
@@ -4136,7 +3672,6 @@ void *icapsql_process_routine(void *p)
    int portal = np ? np->portal : 0;
    STATE *st = np ? np->state : NULL;
    PSTATE *pr = np ? np->pstate : NULL;
-   LCTX *ctx = np ? np->ctx : NULL;
    int state;
    struct timespec ts;
    struct timeval tp;
@@ -4147,7 +3682,7 @@ void *icapsql_process_routine(void *p)
    {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
       clear_portal_storage(portal);
-      display_process_summary(portal, st, pr, ctx, &np->list, 
+      display_process_summary(portal, st, pr, &np->list, 
                               processor_toggle ? LONG_FORMAT : SHORT_FORMAT);
       update_static_portal(portal);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
@@ -4177,7 +3712,6 @@ void *icapsql_summary_routine(void *p)
    int portal = np ? np->portal : 0;
    STATE *st = np ? np->state : NULL;
    PSTATE *pr = np ? np->pstate : NULL;
-   LCTX *ctx = np ? np->ctx : NULL;
    int state;
    struct timespec ts;
    struct timeval tp;
@@ -4188,7 +3722,7 @@ void *icapsql_summary_routine(void *p)
    {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
       clear_portal_storage(portal);
-      display_sysmon_summary(portal, st, pr, ctx, &np->list, 
+      display_sysmon_summary(portal, st, pr, &np->list, 
                               processor_toggle ? LONG_FORMAT : SHORT_FORMAT);
       update_static_portal(portal);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
@@ -4210,153 +3744,6 @@ void *icapsql_summary_routine(void *p)
    return NULL;
 }
 
-int mysql_summary(int portal, LCTX *ctx)
-{
-	GLOBAL *stats_ptr = NULL;
-	sem_t *mutex_sem = NULL;
-	int stats_shm, row;
-	char buf[8192];
-	char nbuf[1024], *w;
-	
-	if (!ctx) {
-       	   write_portal_cleol(portal, "icapsqlmon: context pointers not set in display_sysmon_summary", 0, 2, BRITEWHITE | BGBLUE);
-	   return 0;
-	}
-	
-	stats_shm = shm_open(STATS_MEM_NAME, O_RDONLY, 0); 
-	if (stats_shm > 0) {
-		if ((stats_ptr = (GLOBAL *)mmap(NULL, sizeof(GLOBAL), PROT_READ, MAP_SHARED, stats_shm, 0)) == MAP_FAILED)
-			stats_ptr = NULL;
-	}	
-
-	if ((mutex_sem = sem_open(SEM_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
-		mutex_sem = NULL;
-	}
-
-	if (stats_ptr) {
-		strncpy(ctx->db_host, stats_ptr->db_host, MAX_SQL_HOSTNAME);
-		ctx->db_host[MAX_SQL_HOSTNAME] = '\0';
-
-		strncpy(ctx->db_name, stats_ptr->db_name, MAX_SQL_DATABASE_NAME);
-		ctx->db_name[MAX_SQL_DATABASE_NAME] = '\0';
-
-		strncpy(ctx->db_table, stats_ptr->db_table, MAX_SQL_TABLE_NAME);
-		ctx->db_table[MAX_SQL_TABLE_NAME] = '\0';
-
-		strncpy(ctx->db_user, stats_ptr->db_user, MAX_SQL_USER_NAME);
-		ctx->db_user[MAX_SQL_USER_NAME] = '\0';
-
-		strncpy(ctx->db_pass, "******", MAX_SQL_PASSWORD);
-		ctx->db_pass[MAX_SQL_PASSWORD] = '\0';
-
-		strncpy(ctx->db_path, stats_ptr->db_path, MAX_PATH_LENGTH);
-		ctx->db_path[MAX_PATH_LENGTH] = '\0';
-
-		ctx->db_free_space_threshold = stats_ptr->db_free_space_threshold;
-		ctx->db_max_size = stats_ptr->db_max_size;
-		ctx->skip_length = stats_ptr->skip_length;
-		ctx->condensed_max_length = stats_ptr->condensed_max_length;
-		ctx->show_skipped_requests = stats_ptr->show_skipped_requests;
-		ctx->db_mode = stats_ptr->db_mode;
-		ctx->db_init_startup = stats_ptr->db_init_startup;
-	}
-
-	row = 0;
-	snprintf(buf, sizeof(buf), "Linux Configuration%s", stats_ptr ? "" : " [OFFLINE]");
-       	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-
-	snprintf(buf, sizeof(buf), "SQL Server Hostname       :   %22s", ctx->db_host[0] ? ctx->db_host : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Name         :   %22s", ctx->db_name[0] ? ctx->db_name : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Table Name            :   %22s", ctx->db_table[0] ? ctx->db_table : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL User Account          :   %22s", ctx->db_user[0] ? ctx->db_user : "OFFLINE");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Password              :   %22s", ctx->db_pass);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Path         :   %22s", ctx->db_path);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "SQL Database Mode         :   %22s", ctx->db_mode ? "Ring Buffer" : "Insert Mode");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%ld", ctx->db_free_space_threshold, 18, 0);
-	snprintf(buf, sizeof(buf), "SQL Free Space Threshold  :   %22s", w);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", mysql_free_size(), 18, 0);
-	snprintf(buf, sizeof(buf), "SQL Current Free Space    :   %22s", w);
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-        if (!ctx->db_max_size) {
-		snprintf(buf, sizeof(buf), "SQL Table Max Records     :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%ld", ctx->db_max_size, 18, 0);
-		snprintf(buf, sizeof(buf), "SQL Table Max Records     :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-        if (!ctx->skip_length) {
-		snprintf(buf, sizeof(buf), "HTML Skip Length          :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf(nbuf, sizeof(nbuf), "%ld", ctx->skip_length);
-		snprintf(buf, sizeof(buf), "HTML Skip Length          :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        if (!ctx->condensed_max_length) {
-		snprintf(buf, sizeof(buf), "HTML Extract Max Length   :   %22s", "UNLIMITED");
-	}
-        else {
-		w = comma_snprintf(nbuf, sizeof(nbuf), "%ld", ctx->condensed_max_length);
-		snprintf(buf, sizeof(buf), "HTML Extract Max Length   :   %22s", w);
-	}
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-	snprintf(buf, sizeof(buf), "Show Skipped Content      :   %22s", ctx->show_skipped_requests ? "ON" : "OFF");
-	write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-        write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
-
-	write_portal_cleol(portal, (const char *)" ", row++, 2, BRITEWHITE | BGBLUE);
-
-	if (mutex_sem) {
-		sem_close(mutex_sem);
-		mutex_sem = NULL;
-	}
-
-	if (stats_ptr) {
-		munmap(stats_ptr, sizeof(GLOBAL));
-		stats_ptr = NULL;
-	}
-	if (stats_shm > 0) {
-		close(stats_shm);
-		stats_shm = 0;
-	}
-
-	return 1;
-}
-
-void *mysql_routine(void *p)
-{
-   NP *np = (NP *)p;
-   int portal = np ? np->portal : 0;
-   LCTX *ctx = np ? np->ctx : NULL;
-   int state;
-
-   while (mysqlactive && p && np)
-   {
-      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
-      clear_portal_storage(portal);
-      mysql_summary(portal, ctx);
-      update_static_portal(portal);
-      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
-      sleep(1);
-      if (!get_sleep_count(portal))
-         clear_portal_focus(portal);
-   }
-   return NULL;
-}
-
 pthread_mutex_t pstat_mutex;
 pthread_cond_t pstat_cond;
 
@@ -4366,7 +3753,6 @@ void *pstat_routine(void *p)
    int portal = np ? np->portal : 0;
    STATE *st = np ? np->state : NULL;
    PSTATE *pr = np ? np->pstate : NULL;
-   LCTX *ctx = np ? np->ctx : NULL;
    int state;
    struct timespec ts;
    struct timeval tp;
@@ -4377,7 +3763,7 @@ void *pstat_routine(void *p)
    {
        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
        clear_portal_storage(portal);
-       display_sysmon_summary(portal, st, pr, ctx, &np->list, 
+       display_sysmon_summary(portal, st, pr, &np->list, 
                               processor_toggle ? LONG_FORMAT : SHORT_FORMAT);
        update_static_portal(portal);
        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
@@ -4699,9 +4085,6 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           np.pstate = (PSTATE *)malloc(sizeof(PSTATE));
           if (np.pstate) 
     	     memset(np.pstate, 0, sizeof(PSTATE));
-          np.ctx = (LCTX *)malloc(sizeof(LCTX));
-          if (np.ctx) 
- 	     memset(np.ctx, 0, sizeof(LCTX));
 
           np.list.current = (struct user_net_device_stats *)malloc(sizeof(struct user_net_device_stats));
           if (np.list.current) 
@@ -4727,10 +4110,6 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           if (np.pstate) {
              free(np.pstate);
              np.pstate = NULL;
-          }
-          if (np.ctx) {
-             free(np.ctx);
-             np.ctx = NULL;
           }
           if (np.list.current) {
 	     free(np.list.current);
@@ -4798,9 +4177,6 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           np.pstate = (PSTATE *)malloc(sizeof(PSTATE));
           if (np.pstate) 
     	     memset(np.pstate, 0, sizeof(PSTATE));
-          np.ctx = (LCTX *)malloc(sizeof(LCTX));
-          if (np.ctx) 
- 	     memset(np.ctx, 0, sizeof(LCTX));
 
           np.list.current = (struct user_net_device_stats *)malloc(sizeof(struct user_net_device_stats));
           if (np.list.current) 
@@ -4826,10 +4202,6 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           if (np.pstate) {
              free(np.pstate);
              np.pstate = NULL;
-          }
-          if (np.ctx) {
-             free(np.ctx);
-             np.ctx = NULL;
           }
           if (np.list.current) {
 	     free(np.list.current);
@@ -5000,165 +4372,6 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           }
           unmask_portal(mainportal);
           break;
-
-       case 5:
-          portal = make_portal(get_console_screen(),
-		       "C-ICAP Summary",
-		       0,
-		       3,
-		       0,
-		       get_screen_lines() - 2,
-		       get_screen_cols() - 1,
-		       1024,
-		       BORDER_SINGLE,
-		       YELLOW | BGBLUE,
-		       YELLOW | BGBLUE,
-		       BRITEWHITE | BGBLUE,
-		       BRITEWHITE | BGBLUE,
-		       NULL,
-		       0,
-		       NULL,
-		       TRUE);
-          if (!portal)
-             return 0;
-
-          mask_portal(mainportal);
-
-          snprintf((char *)display_buffer, sizeof(display_buffer),
-                  " (Q)uit/(F3)-Menu  [terminal:%s]",
-                  get_term_name());
-          write_screen_comment_line(get_console_screen(),
-				    (const char *)display_buffer,
-				    BLUE | BGWHITE);
-
-          activate_static_portal(portal);
-          update_static_portal(portal);
-
-          cicapactive = TRUE;
-    	  memset(&np, 0, sizeof(NP));
-	  np.portal = portal;	
-
-          pthread_create(&cicapstat, NULL, cicap_routine, &np);
-
-          enable_portal_focus(portal, 5);
-          get_portal_resp(portal);
-
-          cicapactive = 0;
-          pthread_cancel(cicapstat);
-          pthread_join(cicapstat, NULL);
-
-          snprintf((char *)display_buffer, sizeof(display_buffer),
-                  "  (Q)uit/(F3)-Menu (1)-cpus(%c) TAB-View Stats [terminal:%s]",
-                  processor_toggle ? '-' : '+', get_term_name());
-          write_screen_comment_line(get_console_screen(),
-				    (const char *)display_buffer,
-				    BLUE | BGWHITE);
-          if (portal)
-          {
-             deactivate_static_portal(portal);
-             free_portal(portal);
-          }
-          unmask_portal(mainportal);
-          break;
-
-       case 6:
-          portal = make_portal(get_console_screen(),
-		       "Linux Configuration",
-		       0,
-		       3,
-		       0,
-		       get_screen_lines() - 2,
-		       get_screen_cols() - 1,
-		       1024,
-		       BORDER_SINGLE,
-		       YELLOW | BGBLUE,
-		       YELLOW | BGBLUE,
-		       BRITEWHITE | BGBLUE,
-		       BRITEWHITE | BGBLUE,
-		       NULL,
-		       0,
-		       NULL,
-		       TRUE);
-          if (!portal)
-             return 0;
-
-          mask_portal(mainportal);
-
-          snprintf((char *)display_buffer, sizeof(display_buffer),
-                  "  (Q)uit/(F3)-Menu  [terminal:%s]",
-                  get_term_name());
-          write_screen_comment_line(get_console_screen(),
-				    (const char *)display_buffer,
-				    BLUE | BGWHITE);
-
-          activate_static_portal(portal);
-          update_static_portal(portal);
-
-          memset(&np, 0, sizeof(NP));
-	  np.portal = portal;	
-          np.state = (STATE *)malloc(sizeof(STATE));
-    	  if (np.state) 
-  	     memset(np.state, 0, sizeof(STATE));
-          np.pstate = (PSTATE *)malloc(sizeof(PSTATE));
-          if (np.pstate) 
-    	     memset(np.pstate, 0, sizeof(PSTATE));
-          np.ctx = (LCTX *)malloc(sizeof(LCTX));
-          if (np.ctx) 
- 	     memset(np.ctx, 0, sizeof(LCTX));
-
-          np.list.current = (struct user_net_device_stats *)malloc(sizeof(struct user_net_device_stats));
-          if (np.list.current) 
-  	     memset(np.list.current, 0, sizeof(struct user_net_device_stats));
-          np.list.previous = (struct user_net_device_stats *)malloc(sizeof(struct user_net_device_stats));
-          if (np.list.previous) 
-	     memset(np.list.previous, 0, sizeof(struct user_net_device_stats));
-
-          mysqlactive = TRUE;
-          pthread_create(&mysqlstat, NULL, mysql_routine, &np);
-
-          enable_portal_focus(portal, 5);
-          get_portal_resp(portal);
-
-          mysqlactive = 0;
-          pthread_cancel(mysqlstat);
-          pthread_join(mysqlstat, NULL);
-
-          if (np.state) {
-             free(np.state);
-             np.state = NULL;
-          }
-          if (np.pstate) {
-             free(np.pstate);
-             np.pstate = NULL;
-          }
-          if (np.ctx) {
-             free(np.ctx);
-             np.ctx = NULL;
-          }
-          if (np.list.current) {
-	     free(np.list.current);
-	     np.list.current = NULL;
-          }
-          if (np.list.previous) {
-	     free(np.list.previous);
- 	     np.list.previous = NULL;
-          }
-          free_node_list(&np.list);
-
-          snprintf((char *)display_buffer, sizeof(display_buffer),
-                  "  (Q)uit/(F3)-Menu (1)-cpus(%c) TAB-View Stats [terminal:%s]",
-                  processor_toggle ? '-' : '+', get_term_name());
-          write_screen_comment_line(get_console_screen(),
-				    (const char *)display_buffer,
-				    BLUE | BGWHITE);
-          if (portal)
-          {
-             deactivate_static_portal(portal);
-             free_portal(portal);
-          }
-          unmask_portal(mainportal);
-          break;
-
     }
     return 0;
 
@@ -5233,23 +4446,23 @@ int main(int argc, char *argv[])
     {
        if (!strcasecmp(argv[i], "-h"))
        {
-          printf("USAGE:  icapsqlmon (text|mono|unicode)\n");
+          printf("USAGE:  sysmon (text|mono|unicode)\n");
           printf("        text           - disable box line drawing\n");
           printf("        mono           - disable color mode\n");
           printf("        unicode        - enable unicode support\n");
-          printf("        icapsqlmon -h     - this help screen\n");
-          printf("        icapsqlmon -help  - this help screen\n");
+          printf("        sysmon -h      - this help screen\n");
+          printf("        sysmon -help   - this help screen\n");
           exit(0);
        }
 
        if (!strcasecmp(argv[i], "-help"))
        {
-          printf("USAGE:  icapsqlmon (text|mono|unicode)\n");
+          printf("USAGE:  sysmon (text|mono|unicode)\n");
           printf("        text           - disable box line drawing\n");
           printf("        mono           - disable color mode\n");
           printf("        unicode        - enable unicode support\n");
-          printf("        icapsqlmon -h     - this help screen\n");
-          printf("        icapsqlmon -help  - this help screen\n");
+          printf("        sysmon -h      - this help screen\n");
+          printf("        sysmon -help   - this help screen\n");
           exit(0);
        }
 
@@ -5267,7 +4480,7 @@ int main(int argc, char *argv[])
        return 0;
 
     // set ssi in seconds
-    ssi = set_screensaver_interval(3 * 60);
+    ssi = set_screensaver_interval(5 * 60);
 
     for (i=0; i < (get_screen_lines() - 1); i++)
     {
@@ -5362,8 +4575,6 @@ int main(int argc, char *argv[])
     add_item_to_menu(menu, "Process Summary", 2);
     add_item_to_menu(menu, "Network Summary", 3);
     add_item_to_menu(menu, "Disk Summary", 4);
-//    add_item_to_menu(menu, "ICAP Summary", 5);
-//    add_item_to_menu(menu, "Configuration", 6);
 
     memset(&np, 0, sizeof(NP));
     np.portal = mainportal;	
@@ -5373,9 +4584,6 @@ int main(int argc, char *argv[])
     np.pstate = (PSTATE *)malloc(sizeof(PSTATE));
     if (np.pstate) 
 	memset(np.pstate, 0, sizeof(PSTATE));
-    np.ctx = (LCTX *)malloc(sizeof(LCTX));
-    if (np.ctx) 
-	memset(np.ctx, 0, sizeof(LCTX));
 
     np.list.current = (struct user_net_device_stats *)malloc(sizeof(struct user_net_device_stats));
     if (np.list.current) 
@@ -5398,10 +4606,6 @@ int main(int argc, char *argv[])
     if (np.pstate) {
        free(np.pstate);
        np.pstate = NULL;
-    }
-    if (np.ctx) {
-       free(np.ctx);
-       np.ctx = NULL;
     }
     if (np.list.current) {
 	free(np.list.current);
