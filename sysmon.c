@@ -2475,6 +2475,9 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
         w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", list->current->tx_packets, 19, 0);
         snprintf(buf, sizeof(buf), "Total Transmit Packets    :   %22s", w);
         write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
+
+	write_portal_cleol(portal, " ", row++, 2, BRITEWHITE | BGBLUE);
+	write_portal_line(portal, row++, BRITEWHITE | BGBLUE);
 /*
 	stats_shm = shm_open(STATS_MEM_NAME, O_RDONLY, 0); 
 	if (stats_shm > 0) {
