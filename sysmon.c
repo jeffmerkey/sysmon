@@ -2295,9 +2295,10 @@ int sem_unlock(sem_t *mutex_sem)
 
 int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_list *list, int flags)
 {
-	GLOBAL *stats_ptr = NULL;
-	sem_t *mutex_sem = NULL;
-	int stats_shm, row, n;
+	//GLOBAL *stats_ptr = NULL;
+	//sem_t *mutex_sem = NULL;
+	//int stats_shm;
+        int row, n;
 	char buf[8192];
 	char nbuf[1024], *w;
 	char outbuf[1024], *s;
@@ -2474,9 +2475,7 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
         w = comma_snprintf_scaled(nbuf, sizeof(nbuf), "%llu", list->current->tx_packets, 19, 0);
         snprintf(buf, sizeof(buf), "Total Transmit Packets    :   %22s", w);
         write_portal_cleol(portal, (const char *)buf, row++, 2, BRITEWHITE | BGBLUE);
-
-	row++;
-
+/*
 	stats_shm = shm_open(STATS_MEM_NAME, O_RDONLY, 0); 
 	if (stats_shm > 0) {
 		if ((stats_ptr = (GLOBAL *)mmap(NULL, sizeof(GLOBAL), PROT_READ, MAP_SHARED, stats_shm, 0)) == MAP_FAILED)
@@ -2501,6 +2500,7 @@ int display_sysmon_summary(int portal, STATE *st, PSTATE *pr, struct net_stats_l
 		close(stats_shm);
 		stats_shm = 0;
 	}
+*/
 	return 1;
 }
 
@@ -3512,11 +3512,11 @@ int display_disk_summary(int portal, PSTATE *pr, int flags)
 	return 1;
 }
 
-#define ICAP_STATS_MEM_NAME "/icapstats"
-#define ICAP_SEM_MUTEX_NAME "/icapstatsmutex"
-#define ICAP_STATS_MEM_SIZE 0x100000
+#define SHM_STATS_MEM_NAME "/shmstats"
+#define SHM_SEM_MUTEX_NAME "/shmstatsmutex"
+#define SHM_STATS_MEM_SIZE 0x100000
 
-int display_cicap_summary(int portal)
+int display_tty_summary(int portal)
 {
 	int row, i, j;
 	char buf[1024], *p;
@@ -3526,21 +3526,21 @@ int display_cicap_summary(int portal)
 	int icap_stats_shm;
 	long len;
 
-	icap_stats_shm = shm_open(ICAP_STATS_MEM_NAME, O_RDONLY, 0); 
+	icap_stats_shm = shm_open(SHM_STATS_MEM_NAME, O_RDONLY, 0); 
 	if (icap_stats_shm > 0) {
-		if ((icap_stats_ptr = (char *)mmap(NULL, ICAP_STATS_MEM_SIZE, PROT_READ, MAP_SHARED, icap_stats_shm, 0)) == MAP_FAILED)
+		if ((icap_stats_ptr = (char *)mmap(NULL, SHM_STATS_MEM_SIZE, PROT_READ, MAP_SHARED, icap_stats_shm, 0)) == MAP_FAILED)
 			icap_stats_ptr = NULL;
 	}	
 
-	if ((mutex_sem = sem_open(ICAP_SEM_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
+	if ((mutex_sem = sem_open(SHM_SEM_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
 		mutex_sem = NULL;
 	}
 
 	row = 0;
 	if (icap_stats_ptr) {
 		len = strlen(icap_stats_ptr) + 1;
-		if (len > ICAP_STATS_MEM_SIZE)
-			len = ICAP_STATS_MEM_SIZE;
+		if (len > SHM_STATS_MEM_SIZE)
+			len = SHM_STATS_MEM_SIZE;
 
 		snprintf(nbuf, sizeof(nbuf), "ICAP Server Statistics (%ld bytes)", len);
 		write_portal_cleol(portal, (const char *)nbuf, row++, 2, BRITEWHITE | BGBLUE);
@@ -3606,7 +3606,7 @@ int display_cicap_summary(int portal)
 		mutex_sem = NULL;
 	}
 	if (icap_stats_ptr) {
-		munmap(icap_stats_ptr, ICAP_STATS_MEM_SIZE);
+		munmap(icap_stats_ptr, SHM_STATS_MEM_SIZE);
 		icap_stats_ptr = NULL;
 	}
 	if (icap_stats_shm > 0) {
@@ -3617,7 +3617,11 @@ int display_cicap_summary(int portal)
 	return 1;
 }
 
-void *cicap_routine(void *p)
+/*
+ *   polling loop routines for pthread 
+ *   portals.
+ */
+void *tty_routine(void *p)
 {
    NP *np = (NP *)p;
    int portal = np ? np->portal : 0;
@@ -3627,7 +3631,7 @@ void *cicap_routine(void *p)
    {
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &state);
       clear_portal_storage(portal);
-      display_cicap_summary(portal);
+      display_tty_summary(portal);
       update_static_portal(portal);
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &state);
       sleep(1);
@@ -3637,7 +3641,7 @@ void *cicap_routine(void *p)
    return NULL;
 }
 
-void *icapsql_disk_routine(void *p)
+void *disk_stats_routine(void *p)
 {
    NP *np = (NP *)p;
    int portal = np ? np->portal : 0;
@@ -3661,7 +3665,7 @@ void *icapsql_disk_routine(void *p)
 pthread_mutex_t process_mutex;
 pthread_cond_t process_cond;
 
-void *icapsql_process_routine(void *p)
+void *process_routine(void *p)
 {
    NP *np = (NP *)p;
    int portal = np ? np->portal : 0;
@@ -3701,7 +3705,7 @@ void *icapsql_process_routine(void *p)
 pthread_mutex_t queue_mutex;
 pthread_cond_t queue_cond;
 
-void *icapsql_summary_routine(void *p)
+void *sysmon_summary_routine(void *p)
 {
    NP *np = (NP *)p;
    int portal = np ? np->portal : 0;
@@ -3778,6 +3782,8 @@ void *pstat_routine(void *p)
    pthread_mutex_destroy(&pstat_mutex);
    return NULL;
 }
+
+/*********************************************************************/
 
 ULONG netmenuKeyboardHandler(NWSCREEN *screen, ULONG key, ULONG index, ULONG portal)
 {
@@ -4089,7 +4095,7 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
 	     memset(np.list.previous, 0, sizeof(struct user_net_device_stats));
 
           icapsqlsumactive = TRUE;
-          pthread_create(&netsumstat, NULL, icapsql_summary_routine, &np);
+          pthread_create(&netsumstat, NULL, sysmon_summary_routine, &np);
 
           enable_portal_focus(portal, 5);
           get_portal_resp(portal);
@@ -4181,7 +4187,7 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
 	     memset(np.list.previous, 0, sizeof(struct user_net_device_stats));
 
           icapsqlprocessactive = TRUE;
-          pthread_create(&processstat, NULL, icapsql_process_routine, &np);
+          pthread_create(&processstat, NULL, process_routine, &np);
 
           enable_portal_focus(portal, 5);
           get_portal_resp(portal);
@@ -4340,7 +4346,7 @@ ULONG menuFunction(NWSCREEN *screen, ULONG value, BYTE *option,
           if (np.pstate) 
 	     memset(np.pstate, 0, sizeof(PSTATE));
 
-          pthread_create(&diskstat, NULL, icapsql_disk_routine, &np);
+          pthread_create(&diskstat, NULL, disk_stats_routine, &np);
 
           enable_portal_focus(portal, 5);
           get_portal_resp(portal);
