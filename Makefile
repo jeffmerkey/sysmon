@@ -5,7 +5,7 @@
 #
 #**************************************************************************
 
-INCLUDES=cworthy.h netware-screensaver.h srv_stats.h
+INCLUDES=cworthy.h netware-screensaver.h 
 UTILFILES=libcworthy.a sysmon 
 
 # user utility build flags
