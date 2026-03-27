@@ -28,7 +28,6 @@
 #include <pwd.h>
 
 #include "cworthy.h"
-#include "srv_stats.h"
 
 #include <sys/vfs.h>
 #include <sys/statvfs.h>
