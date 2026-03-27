@@ -60,7 +60,7 @@
 #define NTF_02          0x02
 #define NTF_04          0x04
 
-#define MAX_CPUS  64
+#define MAX_CPUS 256
 
 typedef struct _STATE
 {
